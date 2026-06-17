@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة إدارة النتائج | شلة المونديال</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Cairo', sans-serif; background-color: #020617; color: #f8fafc; }
+        .glass { background: rgba(15,23,42,0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.08); }
+    </style>
+</head>
+<body class="p-4 pb-16">
+
+<!-- شاشة كلمة السر -->
+<div id="lock-screen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/95 p-4">
+    <div class="glass p-8 rounded-3xl w-full max-w-xs text-center border border-rose-500/30">
+        <div class="text-5xl mb-4">🔐</div>
+        <h1 class="text-2xl font-black text-rose-400 mb-2">لوحة الإدارة</h1>
+        <p class="text-slate-400 text-sm mb-6">أدخل كلمة سر الأدمن</p>
+        <input type="password" id="admin-pin" placeholder="كلمة السر"
+            class="w-full bg-slate-900 p-4 rounded-xl mb-4 border border-slate-700 text-center text-white font-bold text-lg"
+            onkeydown="if(event.key==='Enter') checkPin()">
+        <button onclick="checkPin()"
+            class="w-full bg-gradient-to-r from-rose-600 to-amber-600 py-3 rounded-xl font-black text-lg active:scale-95 transition">
+            دخول 🚀
+        </button>
+        <p id="pin-error" class="text-rose-400 text-sm mt-3 hidden">كلمة السر خطأ ❌</p>
+    </div>
+</div>
+
+<!-- المحتوى -->
+<div class="max-w-2xl mx-auto space-y-4 pt-2">
+
+    <!-- رأس الصفحة -->
+    <div class="glass p-4 rounded-2xl flex justify-between items-center">
+        <div>
+            <h1 class="font-black text-rose-400 text-lg">⚙️ لوحة إدارة النتائج</h1>
+            <p class="text-slate-400 text-xs">شلة المونديال 2026</p>
+        </div>
+        <div class="flex gap-2">
+            <button onclick="loadResults()" class="bg-slate-800 hover:bg-slate-700 px-3 py-2 rounded-xl text-sm font-bold text-slate-300 transition active:scale-95">
+                🔄 تحديث
+            </button>
+        </div>
+    </div>
+
+    <!-- إحصائيات سريعة -->
+    <div class="grid grid-cols-3 gap-3">
+        <div class="glass p-3 rounded-xl text-center">
+            <div id="stat-total" class="text-2xl font-black text-amber-400">72</div>
+            <div class="text-xs text-slate-400">إجمالي</div>
+        </div>
+        <div class="glass p-3 rounded-xl text-center">
+            <div id="stat-done" class="text-2xl font-black text-emerald-400">0</div>
+            <div class="text-xs text-slate-400">أُدخلت</div>
+        </div>
+        <div class="glass p-3 rounded-xl text-center">
+            <div id="stat-pending" class="text-2xl font-black text-slate-400">72</div>
+            <div class="text-xs text-slate-400">متبقية</div>
+        </div>
+    </div>
+
+    <!-- فلتر المجموعات -->
+    <div class="glass p-3 rounded-2xl">
+        <div class="flex gap-2 overflow-x-auto pb-1 flex-wrap">
+            <button onclick="filterGroup('all')" id="grp-all"
+                class="grp-btn bg-amber-500/20 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-500/30 whitespace-nowrap">
+                الكل
+            </button>
+            <button onclick="filterGroup('done')" id="grp-done"
+                class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">
+                ✅ مُدخَلة
+            </button>
+            <button onclick="filterGroup('pending')" id="grp-pending"
+                class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">
+                ⏳ لم تُدخَل
+            </button>
+            <button onclick="filterGroup('live')" id="grp-live"
+                class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">
+                🔴 مباشر
+            </button>
+            <span class="text-slate-600 text-xs self-center px-1">|</span>
+            <button onclick="filterGroup('A')" id="grp-A" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">A</button>
+            <button onclick="filterGroup('B')" id="grp-B" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">B</button>
+            <button onclick="filterGroup('C')" id="grp-C" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">C</button>
+            <button onclick="filterGroup('D')" id="grp-D" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">D</button>
+            <button onclick="filterGroup('E')" id="grp-E" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">E</button>
+            <button onclick="filterGroup('F')" id="grp-F" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">F</button>
+            <button onclick="filterGroup('G')" id="grp-G" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">G</button>
+            <button onclick="filterGroup('H')" id="grp-H" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">H</button>
+            <button onclick="filterGroup('I')" id="grp-I" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">I</button>
+            <button onclick="filterGroup('J')" id="grp-J" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">J</button>
+            <button onclick="filterGroup('K')" id="grp-K" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">K</button>
+            <button onclick="filterGroup('L')" id="grp-L" class="grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap">L</button>
+        </div>
+    </div>
+
+    <!-- قائمة المباريات -->
+    <div id="matches-list" class="space-y-3">
+        <div class="glass p-8 rounded-2xl text-center">
+            <div class="text-3xl mb-2 animate-spin inline-block">⚙️</div>
+            <p class="text-slate-400">جاري التحميل...</p>
+        </div>
+    </div>
+
+</div>
+
+<!-- مودال تعديل النتيجة -->
+<div id="edit-modal" class="fixed inset-0 z-50 flex items-end justify-center bg-black/80 hidden p-4">
+    <div class="glass w-full max-w-sm rounded-3xl p-6 border border-amber-500/30 mb-2">
+        <div id="modal-match-title" class="text-center font-black text-amber-400 text-lg mb-5"></div>
+
+        <!-- حالة المباراة -->
+        <div class="mb-4">
+            <label class="block text-xs text-slate-400 mb-2 font-bold">حالة المباراة:</label>
+            <div class="grid grid-cols-3 gap-2">
+                <button onclick="setStatus('FINISHED')" id="btn-finished"
+                    class="status-btn py-2 rounded-xl text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    ✅ انتهت
+                </button>
+                <button onclick="setStatus('LIVE')" id="btn-live"
+                    class="status-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">
+                    🔴 مباشر
+                </button>
+                <button onclick="setStatus('SCHEDULED')" id="btn-scheduled"
+                    class="status-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400">
+                    ⏳ لم تبدأ
+                </button>
+            </div>
+        </div>
+
+        <!-- النتيجة -->
+        <div class="grid grid-cols-3 gap-3 items-center mb-4">
+            <div class="text-center">
+                <p id="modal-home" class="text-xs text-slate-400 mb-1 font-bold truncate"></p>
+                <div class="flex items-center justify-center gap-1">
+                    <button onclick="changeScore('home',-1)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-xl font-black text-lg active:scale-90 transition">−</button>
+                    <span id="score-home" class="text-3xl font-black text-white w-10 text-center">0</span>
+                    <button onclick="changeScore('home',+1)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-xl font-black text-lg active:scale-90 transition">+</button>
+                </div>
+            </div>
+            <div class="text-center text-slate-500 font-black text-2xl">—</div>
+            <div class="text-center">
+                <p id="modal-away" class="text-xs text-slate-400 mb-1 font-bold truncate"></p>
+                <div class="flex items-center justify-center gap-1">
+                    <button onclick="changeScore('away',-1)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-xl font-black text-lg active:scale-90 transition">−</button>
+                    <span id="score-away" class="text-3xl font-black text-white w-10 text-center">0</span>
+                    <button onclick="changeScore('away',+1)" class="bg-slate-800 hover:bg-slate-700 w-9 h-9 rounded-xl font-black text-lg active:scale-90 transition">+</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- دقيقة المباراة (للمباشر فقط) -->
+        <div id="minute-row" class="mb-4 hidden">
+            <label class="block text-xs text-slate-400 mb-1 font-bold">الدقيقة:</label>
+            <input type="number" id="modal-minute" min="1" max="120" placeholder="مثلاً 45"
+                class="w-full bg-slate-900 p-3 rounded-xl border border-slate-700 text-white font-bold text-center">
+        </div>
+
+        <!-- أزرار -->
+        <div class="grid grid-cols-2 gap-3 mt-4">
+            <button onclick="closeModal()"
+                class="bg-slate-800 hover:bg-slate-700 py-3 rounded-xl font-bold text-slate-300 transition active:scale-95">
+                إلغاء
+            </button>
+            <button onclick="saveResult()" id="save-btn"
+                class="bg-gradient-to-r from-emerald-600 to-teal-600 py-3 rounded-xl font-black text-white transition active:scale-95 shadow-lg shadow-emerald-600/20">
+                حفظ ✅
+            </button>
+        </div>
+
+        <!-- زر الحذف -->
+        <button onclick="deleteResult()" id="delete-btn"
+            class="w-full mt-2 bg-rose-500/10 hover:bg-rose-500/20 py-2 rounded-xl font-bold text-rose-400 text-sm transition active:scale-95 hidden">
+            🗑️ حذف النتيجة
+        </button>
+    </div>
+</div>
+
+<script>
+const SB = supabase.createClient(
+    'https://okyvfepzlwoqbrmwjvlo.supabase.co',
+    'sb_publishable_6yOSG0nSOAx-TK18PoCFpQ_UjG11xCZ'
+);
+
+const ADMIN_PIN = '1234'; // ← غيّر هالرقم لكلمة سر تختارها
+
+const FLAGS = {
+    "المكسيك":"🇲🇽","جنوب أفريقيا":"🇿🇦","كوريا الجنوبية":"🇰🇷","تشيكيا":"🇨🇿",
+    "كندا":"🇨🇦","البوسنة والهرسك":"🇧🇦","قطر":"🇶🇦","سويسرا":"🇨🇭",
+    "البرازيل":"🇧🇷","المغرب":"🇲🇦","هايتي":"🇭🇹","اسكتلندا":"🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+    "الولايات المتحدة":"🇺🇸","باراغواي":"🇵🇾","أستراليا":"🇦🇺","تركيا":"🇹🇷",
+    "ألمانيا":"🇩🇪","كوراساو":"🇨🇼","كوت ديفوار":"🇨🇮","الإكوادور":"🇪🇨",
+    "هولندا":"🇳🇱","اليابان":"🇯🇵","تونس":"🇹🇳","السويد":"🇸🇪",
+    "بلجيكا":"🇧🇪","مصر":"🇪🇬","إيران":"🇮🇷","نيوزيلندا":"🇳🇿",
+    "إسبانيا":"🇪🇸","الرأس الأخضر":"🇨🇻","السعودية":"🇸🇦","أوروغواي":"🇺🇾",
+    "فرنسا":"🇫🇷","السنغال":"🇸🇳","العراق":"🇮🇶","النرويج":"🇳🇴",
+    "الأرجنتين":"🇦🇷","الجزائر":"🇩🇿","النمسا":"🇦🇹","الأردن":"🇯🇴",
+    "البرتغال":"🇵🇹","أوزبكستان":"🇺🇿","كولومبيا":"🇨🇴","الكونغو الديمقراطية":"🇨🇩",
+    "إنجلترا":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","كرواتيا":"🇭🇷","غانا":"🇬🇭","بنما":"🇵🇦"
+};
+function f(n){ return FLAGS[n]||"🏳️"; }
+
+const ALL_MATCHES = [
+    {id:"a1",home:"المكسيك",away:"جنوب أفريقيا",date:"2026-06-11",group:"A"},
+    {id:"a2",home:"كوريا الجنوبية",away:"تشيكيا",date:"2026-06-11",group:"A"},
+    {id:"a3",home:"تشيكيا",away:"جنوب أفريقيا",date:"2026-06-18",group:"A"},
+    {id:"a4",home:"المكسيك",away:"كوريا الجنوبية",date:"2026-06-18",group:"A"},
+    {id:"a5",home:"تشيكيا",away:"المكسيك",date:"2026-06-24",group:"A"},
+    {id:"a6",home:"جنوب أفريقيا",away:"كوريا الجنوبية",date:"2026-06-24",group:"A"},
+    {id:"b1",home:"كندا",away:"البوسنة والهرسك",date:"2026-06-12",group:"B"},
+    {id:"b2",home:"قطر",away:"سويسرا",date:"2026-06-12",group:"B"},
+    {id:"b3",home:"سويسرا",away:"كندا",date:"2026-06-19",group:"B"},
+    {id:"b4",home:"البوسنة والهرسك",away:"قطر",date:"2026-06-19",group:"B"},
+    {id:"b5",home:"سويسرا",away:"البوسنة والهرسك",date:"2026-06-25",group:"B"},
+    {id:"b6",home:"كندا",away:"قطر",date:"2026-06-25",group:"B"},
+    {id:"c1",home:"البرازيل",away:"اسكتلندا",date:"2026-06-13",group:"C"},
+    {id:"c2",home:"المغرب",away:"هايتي",date:"2026-06-13",group:"C"},
+    {id:"c3",home:"المغرب",away:"اسكتلندا",date:"2026-06-20",group:"C"},
+    {id:"c4",home:"هايتي",away:"البرازيل",date:"2026-06-20",group:"C"},
+    {id:"c5",home:"اسكتلندا",away:"هايتي",date:"2026-06-26",group:"C"},
+    {id:"c6",home:"البرازيل",away:"المغرب",date:"2026-06-26",group:"C"},
+    {id:"d1",home:"الولايات المتحدة",away:"باراغواي",date:"2026-06-12",group:"D"},
+    {id:"d2",home:"أستراليا",away:"تركيا",date:"2026-06-12",group:"D"},
+    {id:"d3",home:"تركيا",away:"الولايات المتحدة",date:"2026-06-19",group:"D"},
+    {id:"d4",home:"باراغواي",away:"أستراليا",date:"2026-06-19",group:"D"},
+    {id:"d5",home:"تركيا",away:"باراغواي",date:"2026-06-25",group:"D"},
+    {id:"d6",home:"الولايات المتحدة",away:"أستراليا",date:"2026-06-25",group:"D"},
+    {id:"e1",home:"ألمانيا",away:"كوراساو",date:"2026-06-14",group:"E"},
+    {id:"e2",home:"كوت ديفوار",away:"الإكوادور",date:"2026-06-14",group:"E"},
+    {id:"e3",home:"ألمانيا",away:"كوت ديفوار",date:"2026-06-21",group:"E"},
+    {id:"e4",home:"الإكوادور",away:"كوراساو",date:"2026-06-21",group:"E"},
+    {id:"e5",home:"الإكوادور",away:"ألمانيا",date:"2026-06-26",group:"E"},
+    {id:"e6",home:"كوراساو",away:"كوت ديفوار",date:"2026-06-26",group:"E"},
+    {id:"f1",home:"هولندا",away:"اليابان",date:"2026-06-14",group:"F"},
+    {id:"f2",home:"السويد",away:"تونس",date:"2026-06-14",group:"F"},
+    {id:"f3",home:"هولندا",away:"السويد",date:"2026-06-21",group:"F"},
+    {id:"f4",home:"تونس",away:"اليابان",date:"2026-06-21",group:"F"},
+    {id:"f5",home:"هولندا",away:"تونس",date:"2026-06-27",group:"F"},
+    {id:"f6",home:"اليابان",away:"السويد",date:"2026-06-27",group:"F"},
+    {id:"g1",home:"بلجيكا",away:"مصر",date:"2026-06-15",group:"G"},
+    {id:"g2",home:"إيران",away:"نيوزيلندا",date:"2026-06-15",group:"G"},
+    {id:"g3",home:"بلجيكا",away:"إيران",date:"2026-06-22",group:"G"},
+    {id:"g4",home:"نيوزيلندا",away:"مصر",date:"2026-06-22",group:"G"},
+    {id:"g5",home:"بلجيكا",away:"نيوزيلندا",date:"2026-06-27",group:"G"},
+    {id:"g6",home:"مصر",away:"إيران",date:"2026-06-27",group:"G"},
+    {id:"h1",home:"إسبانيا",away:"الرأس الأخضر",date:"2026-06-15",group:"H"},
+    {id:"h2",home:"السعودية",away:"أوروغواي",date:"2026-06-15",group:"H"},
+    {id:"h3",home:"إسبانيا",away:"السعودية",date:"2026-06-21",group:"H"},
+    {id:"h4",home:"أوروغواي",away:"الرأس الأخضر",date:"2026-06-21",group:"H"},
+    {id:"h5",home:"إسبانيا",away:"أوروغواي",date:"2026-06-27",group:"H"},
+    {id:"h6",home:"الرأس الأخضر",away:"السعودية",date:"2026-06-27",group:"H"},
+    {id:"i1",home:"فرنسا",away:"السنغال",date:"2026-06-16",group:"I"},
+    {id:"i2",home:"العراق",away:"النرويج",date:"2026-06-16",group:"I"},
+    {id:"i3",home:"فرنسا",away:"العراق",date:"2026-06-22",group:"I"},
+    {id:"i4",home:"النرويج",away:"السنغال",date:"2026-06-22",group:"I"},
+    {id:"i5",home:"فرنسا",away:"النرويج",date:"2026-06-27",group:"I"},
+    {id:"i6",home:"السنغال",away:"العراق",date:"2026-06-27",group:"I"},
+    {id:"j1",home:"الأرجنتين",away:"الجزائر",date:"2026-06-16",group:"J"},
+    {id:"j2",home:"النمسا",away:"الأردن",date:"2026-06-16",group:"J"},
+    {id:"j3",home:"الأرجنتين",away:"النمسا",date:"2026-06-23",group:"J"},
+    {id:"j4",home:"الأردن",away:"الجزائر",date:"2026-06-23",group:"J"},
+    {id:"j5",home:"الأرجنتين",away:"الأردن",date:"2026-06-27",group:"J"},
+    {id:"j6",home:"الجزائر",away:"النمسا",date:"2026-06-27",group:"J"},
+    {id:"k1",home:"الكونغو الديمقراطية",away:"البرتغال",date:"2026-06-27",group:"K"},
+    {id:"k2",home:"أوزبكستان",away:"كولومبيا",date:"2026-06-18",group:"K"},
+    {id:"k3",home:"البرتغال",away:"كولومبيا",date:"2026-06-23",group:"K"},
+    {id:"k4",home:"الكونغو الديمقراطية",away:"أوزبكستان",date:"2026-06-24",group:"K"},
+    {id:"k5",home:"البرتغال",away:"أوزبكستان",date:"2026-06-29",group:"K"},
+    {id:"k6",home:"كولومبيا",away:"الكونغو الديمقراطية",date:"2026-06-29",group:"K"},
+    {id:"l1",home:"إنجلترا",away:"كرواتيا",date:"2026-06-17",group:"L"},
+    {id:"l2",home:"غانا",away:"بنما",date:"2026-06-17",group:"L"},
+    {id:"l3",home:"إنجلترا",away:"غانا",date:"2026-06-23",group:"L"},
+    {id:"l4",home:"بنما",away:"كرواتيا",date:"2026-06-23",group:"L"},
+    {id:"l5",home:"إنجلترا",away:"بنما",date:"2026-06-27",group:"L"},
+    {id:"l6",home:"كرواتيا",away:"غانا",date:"2026-06-27",group:"L"},
+];
+
+let savedResults = {};  // match_id → {home_score, away_score, status, minute}
+let currentFilter = 'all';
+let editingId = null;
+let editStatus = 'FINISHED';
+let tempHome = 0, tempAway = 0;
+
+// ══════════════════════════════════
+//  كلمة السر
+// ══════════════════════════════════
+function checkPin() {
+    const val = document.getElementById('admin-pin').value.trim();
+    if (val === ADMIN_PIN) {
+        document.getElementById('lock-screen').classList.add('hidden');
+        loadResults();
+    } else {
+        const err = document.getElementById('pin-error');
+        err.classList.remove('hidden');
+        document.getElementById('admin-pin').value = '';
+        setTimeout(() => err.classList.add('hidden'), 2500);
+    }
+}
+
+// ══════════════════════════════════
+//  جلب النتائج من Supabase
+// ══════════════════════════════════
+async function loadResults() {
+    const { data, error } = await SB.from('match_results').select('*');
+    savedResults = {};
+    if (!error && data) {
+        data.forEach(r => { savedResults[r.match_id] = r; });
+    }
+    updateStats();
+    renderList();
+}
+
+function updateStats() {
+    const done = Object.keys(savedResults).length;
+    const total = ALL_MATCHES.length;
+    document.getElementById('stat-total').textContent   = total;
+    document.getElementById('stat-done').textContent    = done;
+    document.getElementById('stat-pending').textContent = total - done;
+}
+
+// ══════════════════════════════════
+//  عرض القائمة
+// ══════════════════════════════════
+function filterGroup(g) {
+    currentFilter = g;
+    document.querySelectorAll('.grp-btn').forEach(b => {
+        b.className = 'grp-btn bg-slate-800 text-slate-400 px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap';
+    });
+    const active = document.getElementById(`grp-${g}`);
+    if (active) active.className = 'grp-btn bg-amber-500/20 text-amber-300 px-3 py-1.5 rounded-lg text-xs font-bold border border-amber-500/30 whitespace-nowrap';
+    renderList();
+}
+
+function renderList() {
+    const list = document.getElementById('matches-list');
+    let filtered = ALL_MATCHES;
+
+    if (currentFilter === 'done')    filtered = ALL_MATCHES.filter(m => savedResults[m.id]);
+    else if (currentFilter === 'pending') filtered = ALL_MATCHES.filter(m => !savedResults[m.id]);
+    else if (currentFilter === 'live')   filtered = ALL_MATCHES.filter(m => savedResults[m.id]?.status === 'LIVE');
+    else if ('ABCDEFGHIJKL'.includes(currentFilter) && currentFilter !== 'all')
+        filtered = ALL_MATCHES.filter(m => m.group === currentFilter);
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="glass p-8 rounded-2xl text-center text-slate-400">لا توجد مباريات في هذا الفلتر</div>';
+        return;
+    }
+
+    list.innerHTML = filtered.map(m => {
+        const r = savedResults[m.id];
+        const dateStr = new Date(m.date).toLocaleDateString('ar-SY', {month:'short', day:'numeric', weekday:'short'});
+
+        let statusBadge, scoreArea;
+        if (!r) {
+            statusBadge = `<span class="bg-slate-700/50 text-slate-400 px-2 py-0.5 rounded-lg text-[10px]">⏳ لم تُدخَل</span>`;
+            scoreArea   = `<span class="text-slate-600 font-bold text-lg">— : —</span>`;
+        } else if (r.status === 'LIVE') {
+            statusBadge = `<span class="bg-rose-500/20 text-rose-400 px-2 py-0.5 rounded-lg text-[10px] animate-pulse">🔴 مباشر${r.minute ? ' '+r.minute+"'" : ''}</span>`;
+            scoreArea   = `<span class="text-rose-400 font-black text-xl">${r.home_score} : ${r.away_score}</span>`;
+        } else {
+            statusBadge = `<span class="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-lg text-[10px]">✅ انتهت</span>`;
+            scoreArea   = `<span class="text-amber-400 font-black text-xl">${r.home_score} : ${r.away_score}</span>`;
+        }
+
+        return `
+        <div onclick="openModal('${m.id}')"
+            class="glass rounded-2xl p-4 border ${r ? (r.status==='LIVE'?'border-rose-500/30':'border-emerald-500/15') : 'border-slate-800'} 
+                   active:scale-[0.98] transition cursor-pointer hover:border-amber-500/30">
+            <div class="flex justify-between items-center mb-3">
+                <span class="bg-slate-800 text-slate-400 px-2 py-0.5 rounded-lg text-[10px] font-bold">المجموعة ${m.group}</span>
+                ${statusBadge}
+                <span class="text-slate-500 text-[10px]">${dateStr}</span>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <span class="text-2xl">${f(m.home)}</span>
+                    <span class="font-bold text-sm truncate">${m.home}</span>
+                </div>
+                <div class="text-center shrink-0 px-2">${scoreArea}</div>
+                <div class="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                    <span class="font-bold text-sm truncate text-right">${m.away}</span>
+                    <span class="text-2xl">${f(m.away)}</span>
+                </div>
+            </div>
+            <div class="text-center mt-2">
+                <span class="text-xs text-slate-600">${r ? 'اضغط للتعديل ✏️' : 'اضغط لإدخال النتيجة +'}</span>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+// ══════════════════════════════════
+//  المودال
+// ══════════════════════════════════
+function openModal(id) {
+    editingId = id;
+    const m = ALL_MATCHES.find(x => x.id === id);
+    const r = savedResults[id];
+
+    document.getElementById('modal-match-title').textContent = `${f(m.home)} ${m.home}  🆚  ${m.away} ${f(m.away)}`;
+    document.getElementById('modal-home').textContent = m.home;
+    document.getElementById('modal-away').textContent = m.away;
+
+    tempHome = r ? r.home_score : 0;
+    tempAway = r ? r.away_score : 0;
+    document.getElementById('score-home').textContent = tempHome;
+    document.getElementById('score-away').textContent = tempAway;
+    document.getElementById('modal-minute').value = r?.minute || '';
+
+    setStatus(r ? r.status : 'FINISHED');
+
+    document.getElementById('delete-btn').classList.toggle('hidden', !r);
+    document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+    document.getElementById('edit-modal').classList.add('hidden');
+    editingId = null;
+}
+
+function setStatus(s) {
+    editStatus = s;
+    ['FINISHED','LIVE','SCHEDULED'].forEach(st => {
+        const btn = document.getElementById(`btn-${st.toLowerCase()}`);
+        if (st === s) {
+            btn.className = 'status-btn py-2 rounded-xl text-xs font-bold ' +
+                (st==='FINISHED' ? 'bg-emerald-500/30 text-emerald-300 border border-emerald-500/50' :
+                 st==='LIVE'     ? 'bg-rose-500/30 text-rose-300 border border-rose-500/50' :
+                                   'bg-blue-500/20 text-blue-300 border border-blue-500/30');
+        } else {
+            btn.className = 'status-btn py-2 rounded-xl text-xs font-bold bg-slate-800 text-slate-400';
+        }
+    });
+    document.getElementById('minute-row').classList.toggle('hidden', s !== 'LIVE');
+}
+
+function changeScore(side, delta) {
+    if (side === 'home') {
+        tempHome = Math.max(0, Math.min(20, tempHome + delta));
+        document.getElementById('score-home').textContent = tempHome;
+    } else {
+        tempAway = Math.max(0, Math.min(20, tempAway + delta));
+        document.getElementById('score-away').textContent = tempAway;
+    }
+}
+
+// ══════════════════════════════════
+//  حفظ النتيجة
+// ══════════════════════════════════
+async function saveResult() {
+    if (!editingId) return;
+    const btn = document.getElementById('save-btn');
+    btn.disabled = true;
+    btn.textContent = 'جاري الحفظ...';
+
+    const minute = parseInt(document.getElementById('modal-minute').value) || null;
+
+    const payload = {
+        match_id:   editingId,
+        home_score: tempHome,
+        away_score: tempAway,
+        status:     editStatus,
+        minute:     editStatus === 'LIVE' ? minute : null,
+        updated_at: new Date().toISOString()
+    };
+
+    const { error } = await SB.from('match_results')
+        .upsert(payload, { onConflict: 'match_id' });
+
+    btn.disabled = false;
+    btn.textContent = 'حفظ ✅';
+
+    if (error) {
+        alert('خطأ في الحفظ: ' + error.message);
+    } else {
+        savedResults[editingId] = payload;
+        closeModal();
+        updateStats();
+        renderList();
+        showToast('✅ تم حفظ النتيجة بنجاح!');
+    }
+}
+
+// ══════════════════════════════════
+//  حذف النتيجة
+// ══════════════════════════════════
+async function deleteResult() {
+    if (!editingId) return;
+    if (!confirm('تأكيد حذف النتيجة؟')) return;
+
+    const { error } = await SB.from('match_results').delete().eq('match_id', editingId);
+    if (!error) {
+        delete savedResults[editingId];
+        closeModal();
+        updateStats();
+        renderList();
+        showToast('🗑️ تم حذف النتيجة');
+    }
+}
+
+// ══════════════════════════════════
+//  Toast إشعار
+// ══════════════════════════════════
+function showToast(msg) {
+    const t = document.createElement('div');
+    t.className = 'fixed bottom-6 left-1/2 -translate-x-1/2 bg-emerald-600 text-white px-6 py-3 rounded-2xl font-bold text-sm shadow-xl z-50 transition-all';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2500);
+}
+
+// إغلاق المودال بالضغط خارجه
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+</script>
+</body>
+</html>
